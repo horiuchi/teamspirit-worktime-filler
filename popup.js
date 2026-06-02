@@ -22,7 +22,8 @@ fillButton.addEventListener('click', async () => {
 
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['content.js']
+      files: ['content.js'],
+      world: 'MAIN'
     });
 
     if (result?.status === 'cancelled') {

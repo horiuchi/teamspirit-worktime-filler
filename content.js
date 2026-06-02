@@ -39,7 +39,46 @@
   }
 
   function clickElement(element) {
-    element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    element.scrollIntoView?.({ block: 'center', inline: 'center' });
+    element.focus?.();
+    ['mousedown', 'mouseup'].forEach((type) => {
+      element.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+    });
+    if (element.click) {
+      element.click();
+    } else {
+      element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    }
+  }
+
+  function findVisibleButtonByText(container, text) {
+    return Array.from(container.querySelectorAll('button, input[type="button"], .dijitButtonNode, [role="button"]'))
+      .find((element) => {
+        const label = element.value || element.innerText || element.textContent || '';
+        return visible(element) && label.includes(text);
+      });
+  }
+
+  async function clickAndWaitUntilClosed(buttonSelector, dialogSelector, label) {
+    const dialog = await waitFor(dialogSelector);
+    const button = document.querySelector(buttonSelector) || findVisibleButtonByText(dialog, label);
+    if (!button || !visible(button)) {
+      throw new Error(`${label} ボタンが表示されませんでした。`);
+    }
+    clickElement(button);
+    await waitUntilClosed(dialogSelector);
+  }
+
+  function getDijitWidget(element) {
+    const id = element?.id || element?.getAttribute?.('widgetid') || element?.closest?.('[widgetid]')?.getAttribute('widgetid');
+    const dijit = window.dijit;
+    if (!id || !dijit) return null;
+    return dijit.byId?.(id) || dijit.registry?.byId?.(id) || null;
+  }
+
+  function dispatchValueEvents(element) {
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function getMonthLabel() {
@@ -106,27 +145,71 @@
   }
 
   function setSliderToMax(index) {
+    const sliderRoot = document.querySelector(`#empWorkSlider${index}`);
     const slider = document.querySelector(`#empWorkSlider${index} [role="slider"]`);
     const valueInput = document.querySelector(`input[name="empWorkSlider${index}"]`);
+    const rootInputs = Array.from(sliderRoot?.querySelectorAll('input') || []);
     const progress = document.querySelector(`#empWorkSlider${index} .dijitSliderProgressBar`);
     const remaining = document.querySelector(`#empWorkSlider${index} .dijitSliderRemainingBar`);
     const label = document.querySelector(`#empTimeLabel${index}`);
     const percentRadio = document.querySelector(`#btnPercent${index}`);
 
-    if (percentRadio && !percentRadio.checked) clickElement(percentRadio);
+    if (percentRadio) {
+      if (!percentRadio.checked) clickElement(percentRadio);
+      percentRadio.checked = true;
+      dispatchValueEvents(percentRadio);
+      const radioWidget = getDijitWidget(percentRadio);
+      radioWidget?.set?.('checked', true);
+      radioWidget?.setValue?.(true);
+    }
     if (valueInput) {
       valueInput.value = '1000';
-      valueInput.dispatchEvent(new Event('input', { bubbles: true }));
-      valueInput.dispatchEvent(new Event('change', { bubbles: true }));
+      dispatchValueEvents(valueInput);
+    }
+    rootInputs.forEach((input) => {
+      input.value = '1000';
+      dispatchValueEvents(input);
+    });
+    if (sliderRoot) {
+      sliderRoot.value = '1000';
+      dispatchValueEvents(sliderRoot);
+    }
+    const widget = getDijitWidget(sliderRoot) || getDijitWidget(slider);
+    if (widget?.set) {
+      widget.set('value', 1000);
+      widget.onChange?.(1000);
+    } else if (widget?.setValue) {
+      widget.setValue(1000);
     }
     if (slider) {
+      slider.focus?.();
       slider.setAttribute('aria-valuenow', '1000');
       slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
       slider.dispatchEvent(new KeyboardEvent('keyup', { key: 'End', bubbles: true }));
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
     }
     if (progress) progress.style.width = '100%';
     if (remaining) remaining.style.width = '0%';
     if (label) label.textContent = '100%';
+  }
+
+  function getSliderValue(index) {
+    const sliderRoot = document.querySelector(`#empWorkSlider${index}`);
+    const slider = document.querySelector(`#empWorkSlider${index} [role="slider"]`);
+    const valueInput = document.querySelector(`input[name="empWorkSlider${index}"]`);
+    const widget = getDijitWidget(sliderRoot) || getDijitWidget(slider);
+    const widgetValue = widget?.get?.('value') ?? widget?.value;
+    const rawValue = widgetValue ?? valueInput?.value ?? slider?.getAttribute('aria-valuenow') ?? '0';
+    return Number(rawValue);
+  }
+
+  async function waitForSliderValue(index, expectedValue) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 3000) {
+      if (getSliderValue(index) === expectedValue) return;
+      await sleep(WAIT_MS);
+    }
+    throw new Error(`Dev 100% が画面内部値に反映されませんでした。`);
   }
 
   async function fillDevWork(item) {
@@ -140,9 +223,8 @@
     }
 
     setSliderToMax(devIndex);
-    await sleep(WAIT_MS);
-    clickElement(await waitFor('#empWorkOk'));
-    await waitUntilClosed('#dialogWorkBalance');
+    await waitForSliderValue(devIndex, 1000);
+    await clickAndWaitUntilClosed('#empWorkOk', '#dialogWorkBalance', '登録');
     await sleep(WAIT_MS);
   }
 
