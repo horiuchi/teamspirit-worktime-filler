@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TeamSpirit Filler</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>TeamSpirit Filler</h1>
+      <p>開いている勤務表の編集可能な勤務日に、出社/退社と Dev 工数を入力します。</p>
+      <dl>
+        <div><dt>出社</dt><dd>10:00</dd></div>
+        <div><dt>退社</dt><dd>18:30</dd></div>
+        <div><dt>工数</dt><dd>Dev 100%</dd></div>
+      </dl>
+      <button id="fillButton" type="button">勤務表を入力</button>
+      <p id="status" role="status"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

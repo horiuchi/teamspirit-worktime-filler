@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "TeamSpirit Worktime Filler",
+  "version": "0.1.0",
+  "description": "Fill TeamSpirit attendance rows with 10:00-18:30 and Dev 100%.",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": [
+    "https://teamspirit-8860--teamspirit.vf.force.com/apex/AtkWorkTimeView*"
+  ],
+  "action": {
+    "default_title": "Fill TeamSpirit",
+    "default_popup": "popup.html"
+  }
+}
